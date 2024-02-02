@@ -6,7 +6,8 @@ import yfinance as yf
 url = "http://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 table = pd.read_html(url)[0]
 tickers_500 = table.Symbol.tolist()
-tickers_use = ["CXW", "F", "GM", "KR", "WDC", "NKE","T", "WDAY", "WFC", "WMT", "TGT"]
+tickers_use = ["CXW", "F", "GM", "KR", "WDC",
+               "NKE", "T", "WDAY", "WFC", "WMT", "TGT"]
 # %%
 # example for one ticker
 msft = yf.Ticker("MSFT")
@@ -16,6 +17,23 @@ msft.history(period="2y", interval="1h")
 dat = yf.download(tickers_use, period="5y", interval="1d").reset_index()
 
 # %%
+dat = pl.from_pandas(dat).melt(id_vars="('Date', '')")\
+    .with_columns(
+    pl.col("variable")
+        .str.replace_many(["", "(", ")", ""], '')
+        .str.split_exact(",", 1).alias("split"))\
+    .unnest("split")\
+    .rename({"('Date', '')": "date"})\
+    .pivot(
+        values='value',
+        index=['date', "field_1"],
+        columns='field_0',
+        aggregate_function='first')\
+    .rename({"field_1": "ticker"})
+
+dat.write_parquet("stock.parquet")
+
+# dat.reset_index()
 # We want this.
 # ┌────────┬──────────────┬───────────┬───────────┬───────────┬───────────┬───────────┬──────────┐
 # │ ticker ┆ date         ┆ Adj Close ┆ Close     ┆ High      ┆ Low       ┆ Open      ┆ Volume   │
@@ -34,8 +52,9 @@ dat = yf.download(tickers_use, period="5y", interval="1d").reset_index()
 # │        ┆ 00:00:00     ┆           ┆           ┆           ┆           ┆           ┆          │
 # └────────┴──────────────┴───────────┴───────────┴───────────┴───────────┴───────────┴──────────┘
 
-# pdat = 
-
+# pdat =
 
 
 # pdat.write_parquet("stock.parquet")
+
+# %%
